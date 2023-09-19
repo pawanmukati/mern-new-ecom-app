@@ -8,12 +8,24 @@ exports.createProduct = async (req, res, next) => {
       success: true,
       product: newProduct,
     });
+    console.log(newProduct);
   } catch (error) {
-    // Handle any errors that occur during product creation
-    next(error);
+    if (error.name === "ValidationError") {
+      // Log the validation errors
+      console.error("Validation Error:", error.message);
+      res.status(400).json({
+        success: false,
+        message: "Validation error. Check your request data.",
+        errors: error.errors,
+      });
+    } else {
+      // Handle other types of errors
+      next(error);
+    }
   }
 };
 
-exports.getAllProduct = (req, res) => {
-  res.status(200).json({ message: "route is working fine" });
+exports.getAllProduct = async (req, res) => {
+  const products = await Product.find();
+  res.status(200).json({ success: true, products });
 };
