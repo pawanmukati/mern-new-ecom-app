@@ -1,49 +1,43 @@
 const Product = require("../models/productModel");
+const ErrorHandler = require("../utils/errorHandler");
+const catchAsyncError = require("../middleware/catchAsyncError");
+const ApiFeatures = require("../utils/apiFeatures");
 
 // create product Admin
-exports.createProduct = async (req, res, next) => {
-  try {
-    const newProduct = await Product.create(req.body);
-    res.status(201).json({
-      success: true,
-      product: newProduct,
-    });
-    console.log(newProduct);
-  } catch (error) {
-    if (error.name === "ValidationError") {
-      // Log the validation errors
-      console.error("Validation Error:", error.message);
-      res.status(400).json({
-        success: false,
-        message: "Validation error. Check your request data.",
-        errors: error.errors,
-      });
-    } else {
-      // Handle other types of errors
-      next(error);
-    }
-  }
-};
+exports.createProduct = catchAsyncError(async (req, res, next) => {
+  const newProduct = await Product.create(req.body);
+  res.status(201).json({
+    success: true,
+    product: newProduct,
+  });
+});
 // get all product
-exports.getAllProduct = async (req, res) => {
-  const products = await Product.find();
-  res.status(200).json({ success: true, products });
-};
+exports.getAllProduct = catchAsyncError(async (req, res) => {
+  const resultPerPage = 2;
+  const productCount = await Product.countDocuments();
+  const apiFeatures = new ApiFeatures(Product.find(), req.query)
+    .search()
+    .filter()
+    .pagination(resultPerPage);
+  const products = await apiFeatures.query;
+  res.status(200).json({ success: true, products, productCount });
+});
 
 // get product details
 
-exports.getProductDetails = async (req, res, next) => {
+exports.getProductDetails = catchAsyncError(async (req, res, next) => {
   let product = await Product.findById(req.params.id);
   if (!product) {
-    res.status(500).json({ success: false, message: "Product not found" });
+    return next(new ErrorHandler("Product not found", 404));
   }
-};
+  res.status(200).json({ success: true, product });
+});
 
 // update product admin
-exports.updateProduct = async (req, res) => {
+exports.updateProduct = catchAsyncError(async (req, res) => {
   let product = await Product.findById(req.params.id);
   if (!product) {
-    res.status(500).json({ success: false, message: "Product not found" });
+    return next(new ErrorHandler("Product not found", 404));
   }
   product = await Product.findByIdAndUpdate(req.params.id, req.body, {
     new: true,
@@ -51,9 +45,9 @@ exports.updateProduct = async (req, res) => {
     useFindAndModify: false,
   });
   res.status(200).json({ success: true, product });
-};
+});
 
-exports.deleteProduct = async (req, res) => {
+exports.deleteProduct = catchAsyncError(async (req, res) => {
   const product = await Product.findById(req.params.id);
 
   if (product) {
@@ -63,4 +57,4 @@ exports.deleteProduct = async (req, res) => {
     res.status(404);
     throw new Error("Product not found");
   }
-};
+});
